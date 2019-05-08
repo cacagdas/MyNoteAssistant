@@ -1,0 +1,42 @@
+{
+  "project_info": {
+    "project_number": "531620554479",
+    "firebase_url": "https://mynoteassistant-1518380875275.firebaseio.com",
+    "project_id": "mynoteassistant-1518380875275",
+    "storage_bucket": "mynoteassistant-1518380875275.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:531620554479:android:0e023b1f69a8c370",
+        "android_client_info": {
+          "package_name": "cacagdas.mynoteassistant.com"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "531620554479-vfudufeqjiad85kp8skeelbsedinoma6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCV7ptOZ50jdHtLNyMTYVc9QyJz_Tj-8Xo"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 1,
+          "other_platform_oauth_client": []
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

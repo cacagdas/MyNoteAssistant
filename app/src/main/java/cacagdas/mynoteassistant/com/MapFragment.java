@@ -19,7 +19,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.SeekBar;
 import android.widget.Switch;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -48,12 +50,14 @@ public class MapFragment extends Fragment implements
 
     EditText txtLocationSearch;
     Button btnLocationSearch;
-    Switch switchLocation;
 
-    Address address;
+    public static Address address;
     List<Address> addressList = null;
     ArrayList<LatLng> markerPoints = new ArrayList<LatLng>();
     String location;
+
+    public static MarkerOptions options;
+    public static MarkerOptions options2;
 
     double currentLat = 0;
     double currentLng = 0;
@@ -76,6 +80,7 @@ public class MapFragment extends Fragment implements
         mapView.onResume();
         mapView.getMapAsync(this);
 
+        options = new MarkerOptions();
 
         btnLocationSearch.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -99,8 +104,10 @@ public class MapFragment extends Fragment implements
 
     public void onMapSearch() {
         location = txtLocationSearch.getText().toString();
-        addMarkerToLocation();
-
+        location = location.trim();
+        if(location != null && location.equals("") == false) {
+            addMarkerToLocation();
+        } else Toast.makeText(getActivity(), "Please write a place.", Toast.LENGTH_LONG).show();
     }
 
     @Override
@@ -112,25 +119,21 @@ public class MapFragment extends Fragment implements
         }
         // Adding new item to the ArrayList
         markerPoints.add(latLng);
-
         // Creating MarkerOptions
-        MarkerOptions options = new MarkerOptions();
 
         // Setting the position of the marker
         options.position(latLng);
-
         mMap.addMarker(options);
     }
 
     public void addMarkerToLocation(){
-
-        // List<Address> addressList = null;
 
         if (markerPoints.size() > 0) {
             markerPoints.clear();
             mMap.clear();
         }
 
+        //FIXME burayı sonra düzelt.
         if (location != null || !location.equals("")) {
             Geocoder geocoder = new Geocoder(this.getActivity());
             try {
@@ -140,16 +143,16 @@ public class MapFragment extends Fragment implements
                 e.printStackTrace();
             }
 
+            if( addressList != null && addressList.size() > 0 && addressList.get(0) != null) {
+                address = addressList.get(0);
+                LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
+                markerPoints.add(latLng);
+                options.position(latLng);
+                options.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
 
-            address = addressList.get(0);
-            LatLng latLng = new LatLng(address.getLatitude(), address.getLongitude());
-            markerPoints.add(latLng);
-            MarkerOptions options = new MarkerOptions();
-            options.position(latLng);
-            options.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_RED));
-
-            mMap.addMarker(options);
-            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+                mMap.addMarker(options);
+                mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(latLng, 15));
+            } else Toast.makeText(getActivity(), "Please write a valid place.", Toast.LENGTH_LONG).show();
         }
     }
 
@@ -182,8 +185,6 @@ public class MapFragment extends Fragment implements
         }
     }
 
-
-
     @Override
     public boolean onMyLocationButtonClick() {
         /**
@@ -208,18 +209,19 @@ public class MapFragment extends Fragment implements
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
-
+        /**
         LocationManager locationManager = (LocationManager) this.getActivity().getSystemService(Context.LOCATION_SERVICE);
         Criteria criteria = new Criteria();
         if (ActivityCompat.checkSelfPermission(this.getActivity(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this.getActivity(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             return;
         }
         Location location = locationManager.getLastKnownLocation(locationManager.getBestProvider(criteria, false));
-        currentLat = location.getLatitude();
-        currentLng = location.getLongitude();
+         */
 
-        currentLatLng = new LatLng (currentLat, currentLng);
-        mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(currentLatLng, 15));
+        if (GPSService.location != null) {
+            LatLng zoomLocation = new LatLng(GPSService.location.getLatitude(), GPSService.location.getLongitude());
+            mMap.animateCamera(CameraUpdateFactory.newLatLngZoom(zoomLocation, 15));
+        }
 
         if (ActivityCompat.checkSelfPermission(this.getActivity(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this.getActivity(), Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
 

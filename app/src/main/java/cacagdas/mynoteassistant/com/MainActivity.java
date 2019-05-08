@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
+import android.text.InputType;
+import android.util.Log;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -13,18 +15,43 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.AdapterView;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.LinearLayout;
 import android.widget.ListView;
+import android.widget.RelativeLayout;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.model.LatLng;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.database.ChildEventListener;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
+
+
+import static cacagdas.mynoteassistant.com.CompletedListActivity.isActive;
+import static cacagdas.mynoteassistant.com.NoteAddActivity.completedNoteList;
+import static cacagdas.mynoteassistant.com.NoteAddActivity.currentFirebaseUser;
+import static cacagdas.mynoteassistant.com.NoteAddActivity.mNoteReference;
+import static cacagdas.mynoteassistant.com.NoteAddActivity.noteList;
 
 public class MainActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener {
 
-    private List<Note> noteList;
-    private NoteListAdapter noteListAdapter;
+    public static NoteListAdapter noteListAdapter;
+    public static NoteListAdapter completedListAdapter;
+    ListView lvNoteList;
+    LinearLayout layoutListViewItem;
+    NoteListAdapter.ViewHolder viewHolder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -51,55 +78,90 @@ public class MainActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-
-        //addNoteList çalıştırılması
-        addNoteToList();
-    }
-
-    /**
-     not listesine eklenecek notların oluşturulması (şimdilik)
-     */
-    public void addNoteToList() {
-        noteList = new ArrayList<>();
-        noteList.add(new Note("Note Header", "Note Content"));
-        noteList.add(new Note("Note Header 2", "Note Content 2"));
-
+        initViews();
         noteListAdapter = new NoteListAdapter(this, 0, noteList);
+        lvNoteList.setAdapter(noteListAdapter);
 
-        ListView listView = (ListView) findViewById(R.id.lvNoteList);
-        listView.setAdapter(noteListAdapter);
+        /**
+        lvNoteList.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+            @Override
+            public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+                setIntent();
+            }
+        });
+         */
+
+        completedListAdapter = new NoteListAdapter(getApplicationContext(), 0, completedNoteList);
+        isActive = false;
+
+        onFirebaseData();
     }
+
+    public void setIntent() {
+        Intent myIntent = new Intent(MainActivity.this, NoteAddActivity.class);
+        startActivity(myIntent);
+    }
+
+    public void onFirebaseData() {
+        currentFirebaseUser = FirebaseAuth.getInstance().getCurrentUser();
+        final String userId = currentFirebaseUser.getUid();
+        System.out.println("email: "+currentFirebaseUser.getEmail());
+        mNoteReference = FirebaseDatabase.getInstance().getReference()
+                .child("users").child(userId).child("notes");
+
+        mNoteReference.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                noteList.clear();
+                for (DataSnapshot postSnapshot : dataSnapshot.getChildren()) {
+
+                    HashMap<String, Object> hashMap = (HashMap<String, Object>) postSnapshot.getValue();
+
+                    HashMap<String, Object> noteLocation = (HashMap<String, Object>) hashMap.get("noteLocation");
+                    Double lat = (Double) noteLocation.get("latitude");
+                    Double lon = (Double) noteLocation.get("longitude");
+                    LatLng ltlng = new LatLng(lat, lon);
+
+                    Note note = new Note((String)hashMap.get("noteHeader"), (String)hashMap.get("noteContent"), ltlng,
+                            (long)hashMap.get("noteDistance"), (boolean)hashMap.get("isNotified"),
+                            (boolean)hashMap.get("isInBounds"), (long)hashMap.get("counter"), postSnapshot.getKey());
+                    System.out.println("firebasenote: " + note);
+                    noteList.add(note);
+                    noteListAdapter.notifyDataSetChanged();
+
+                    if (noteList.size() != 0) {
+                        startService(new Intent(getApplicationContext(), GPSService.class));
+                    } else if(noteList.size() == 0) {
+                        listEmpty();
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(DatabaseError databaseError) {
+
+            }
+        });
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        isActive = false;
+    }
+
+    public void initViews() {
+        lvNoteList = (ListView) findViewById(R.id.lvNoteList);
+    }
+
 
     @Override
     public void onBackPressed() {
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
-        if (drawer.isDrawerOpen(GravityCompat.START)) {
-            drawer.closeDrawer(GravityCompat.START);
-        } else {
-            super.onBackPressed();
-        }
+        moveTaskToBack(true);
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        // Inflate the menu; this adds items to the action bar if it is present.
-        getMenuInflater().inflate(R.menu.main, menu);
-        return true;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
-
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
+    public void listEmpty() {
+        Toast.makeText(getApplicationContext(), "List is empty.", Toast.LENGTH_LONG).show();
     }
 
     @SuppressWarnings("StatementWithEmptyBody")
@@ -111,13 +173,20 @@ public class MainActivity extends AppCompatActivity
         if (id == R.id.nav_notes) {
             // Handle the camera action
         } else if (id == R.id.nav_notes_completed) {
-
+            Intent myIntent = new Intent(MainActivity.this, CompletedListActivity.class);
+            MainActivity.this.startActivity(myIntent);
         } else if (id == R.id.nav_friends) {
-
+            Intent intent = new Intent(this, FriendsActivity.class);
+            startActivity(intent);
+        } else if (id == R.id.nav_logout) {
+            FirebaseAuth.getInstance().signOut();
+            Intent myIntent = new Intent(MainActivity.this, LoginActivity.class);
+            MainActivity.this.startActivity(myIntent);
         }
 
         DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
+
 }
